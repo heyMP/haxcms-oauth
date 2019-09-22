@@ -1,14 +1,17 @@
-const dotenv = require('dotenv')
+require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const bodyParser = require('body-parser')
 const fetch = require('node-fetch')
 const { Photon } = require('@generated/photon')
 const photon = new Photon()
+const jwt = require('jsonwebtoken');
 
-const CLIENT_ID = process.env.CLIENT_ID
-const CLIENT_SECRET = process.env.CLIENT_SECRET
-const HAXCMS_AUTH_SECRET = process.env.HAXCMS_AUTH_SECRET
+const CLIENT_ID = process.env.GITHUB_CLIENT_ID
+const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET
+const HAXCMS_OAUTH_JWT_SECRET = process.env.HAXCMS_OAUTH_JWT_SECRET
+const FQDN = process.env.FQDN
+const SCOPE = process.env.SCOPE
 
 async function main() {
   await photon.connect()
@@ -17,7 +20,8 @@ async function main() {
   app.use(bodyParser.json())
 
   app.get('/login', (req, res) => {
-    res.redirect(`https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=user:email,read:user`)
+    const redirect = `redirect=${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}`
+    res.redirect(`https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=user:email,read:user&redirect_uri=${FQDN}/login/callback?${redirect}`)
   })
 
   app.get('/login/callback', async (req, res, next) => {
@@ -51,28 +55,28 @@ async function main() {
     "
     }).then(_res => _res.json())
 
-    // check to see if that user is in the system.
-    if (typeof userFetch.data !== 'undefined') {
-      const userName = userFetch.data.viewer.login
-      try {
-        const user = await photon.users.upsert({
-          where: { name: userName },
-          update: {
-            githubAccessToken: access_token
-          },
-          create: {
-            name: userName,
-            githubAccessToken: access_token
-          }
-        })
-        res.send(user)
-      } catch (error) {
-        next(error)
-      }
-    }
+    const userName = userFetch.data.viewer.login
+    try {
+      const user = await photon.users.upsert({
+        where: { name: userName },
+        update: {
+          githubAccessToken: access_token
+        },
+        create: {
+          name: userName,
+          githubAccessToken: access_token
+        }
+      })
 
-    res.status('403')
-    res.send('User not found')
+      // Create JWT for the user
+      const jwtToken = await jwt.sign({ name: user.name }, HAXCMS_OAUTH_JWT_SECRET)
+
+      // if the user specified a redirect url then redirect with a cookie
+      res.cookie('Authorization', jwtToken, { maxAge: 900000, httpOnly: true, domain: SCOPE })
+      res.redirect(req.query.redirect)
+    } catch (error) {
+      next(error)
+    }
   })
 
   app.listen(3000, () => {
