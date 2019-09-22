@@ -1,0 +1,24 @@
+{
+  "name": "script",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^8.1.0",
+    "express": "^4.17.1",
+    "cors": "^2.8.5",
+    "reflect-metadata": "0.1.13",
+    "nodemon": "^1.19.2",
+    "body-parser": "^1.19.0",
+    "node-fetch": "^2.6.0"
+  },
+  "devDependencies": {
+    "ts-node": "8.4.1",
+    "typescript": "3.6.3",
+    "prisma2": "2.0.0-preview-12"
+  },
+  "scripts": {
+    "start": "nodemon ./server/index.js",
+    "seed": "ts-node ./seed.ts",
+    "create-db": "prisma2 lift up && prisma2 generate",
+    "postinstall": "prisma2 generate"
+  }
+}
