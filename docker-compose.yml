@@ -9,14 +9,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
   
-  haxcms:
-    image: elmsln/haxcms:latest
-    labels:
-      - "traefik.enable=true" # Enable reverse-proxy for this service
-      - "traefik.frontend.rule=Host:haxcms.localhost"
-      - "traefik.port=80"
-      - "traefik.frontend.passHostHeader=true"
-
   server:
     build: .
     volumes:
