@@ -22,6 +22,30 @@ async function main() {
   app.use(bodyParser.json());
   app.use(cookieParser());
 
+  app.get("/auth", async (req, res) => {
+    const { authorization } = req.cookies;
+    if (authorization) {
+      // Decode jwt
+      try {
+        const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+        // Create JWT for the user
+        const jwtToken = await jwt.sign(
+          { name },
+          HAXCMS_OAUTH_JWT_SECRET
+        );
+        res.status(200)
+        res.header('X-Auth-User', JSON.stringify(jwtToken))
+        res.send('OK');
+      } catch (error) {
+        res.status(401)
+        res.send()
+      }
+    } else {
+        res.status(401)
+        res.send()
+    }
+  });
+
   app.get("/", (req, res) => {
     const { authorization } = req.cookies;
     if (authorization) {
@@ -111,6 +135,7 @@ async function main() {
         httpOnly: true,
         domain: SCOPE
       });
+      res.header('X-Auth-User', jwtToken)
       res.redirect(req.query.redirect);
     } catch (error) {
       next(error);

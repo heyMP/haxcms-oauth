@@ -2,22 +2,33 @@ version: '3.7'
 services:
   reverse-proxy:
     image: traefik # The official Traefik docker image
-    command: --api --docker # Enables the web UI and tells Traefik to listen to docker
+    command: --api --docker --logLevel="DEBUG" # Enables the web UI and tells Traefik to listen to docker
     ports:
       - "80:80"     # The HTTP port
-      # - "8080:8080" # The Web UI (enabled by --api)
+      - "8888:8080" # The Web UI (enabled by --api)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
+  
+  nginx:
+    image: nginx
+    # volumes:
+      # - ./demo:/usr/share/nginx/html
+    labels:
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.frontend.rule=Host:demo.haxcms.localhost"
+      # - "traefik.frontend.auth.forward.address=http://auth.haxcms.localhost/auth"
+      # - "traefik.frontend.auth.forward.authResponseHeaders=X-Auth-User"
+      # - "traefik.frontend.auth.forward.trustForwardHeader=true"
+      - "traefik.port=80"
   
   server:
     build: .
     volumes:
-      - ./prisma/dev.db:/home/node/app/prisma/dev.db
+      - /home/node/app/prisma/dev.db
       - /home/node/app/node_modules
       - .:/home/node/app
     labels:
       - "traefik.enable=true" # Enable reverse-proxy for this service
       - "traefik.frontend.rule=Host:auth.haxcms.localhost"
       - "traefik.port=4000"
-      # - "traefik.frontend.rule=HostRegexp:{subdomain:.+}.haxcms.localhost,haxcms.localhost; PathPrefix:/login"
       - "traefik.frontend.passHostHeader=true"
