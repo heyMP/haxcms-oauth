@@ -25,7 +25,7 @@ services:
       - .:/home/node/app
     labels:
       - "traefik.enable=true" # Enable reverse-proxy for this service
-      - "traefik.frontend.rule=Host:haxcms.localhost"
-      - "traefik.port=3000"
+      - "traefik.frontend.rule=Host:auth.haxcms.localhost"
+      - "traefik.port=4000"
       - "traefik.frontend.rule=HostRegexp:{subdomain:.+}.haxcms.localhost,haxcms.localhost; PathPrefix:/login"
       - "traefik.frontend.passHostHeader=true"
