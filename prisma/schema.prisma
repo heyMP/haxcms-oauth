@@ -1,6 +1,6 @@
 datasource db {
-  provider = "postgresql"
-  url      = "postgresql://prisma:prisma@postgres/"
+  provider = env("PRISMA_DB_PROVIDER")
+  url      = env("PRISMA_DB_URL")
 }
 
 generator photon {
