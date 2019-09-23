@@ -29,20 +29,17 @@ async function main() {
       try {
         const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
         // Create JWT for the user
-        const jwtToken = await jwt.sign(
-          { name },
-          HAXCMS_OAUTH_JWT_SECRET
-        );
-        res.status(200)
-        res.header('X-Auth-User', JSON.stringify(jwtToken))
-        res.send('OK');
+        const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
+        res.status(200);
+        res.header("X-Forward-Auth-User", JSON.stringify(jwtToken));
+        res.send("OK");
       } catch (error) {
-        res.status(401)
-        res.send()
+        res.status(401);
+        res.send();
       }
     } else {
-        res.status(401)
-        res.send()
+      res.status(401);
+      res.send();
     }
   });
 
@@ -59,17 +56,24 @@ async function main() {
 
   app.get("/logout", (req, res) => {
     // When deleting a cookie you need to also include the path and domain
-    res.clearCookie('authorization', { domain: SCOPE })
-    res.redirect('/')
+    res.clearCookie("authorization", { domain: SCOPE });
+    res.redirect("/");
   });
 
   app.get("/login", (req, res) => {
+    // get a redirect query parameter
     const redirect =
+      // if we have a redirect query then use it
       typeof req.query.redirect !== "undefined"
         ? `redirect=${req.query.redirect}`
-        : `redirect=${req.headers["x-forwarded-proto"]}://${
+        : // else if there is an x-forwared-host defined then use that
+        typeof req.headers["x-forwarded-host"] !== "undefined"
+        ? `redirect=${req.headers["x-forwarded-proto"]}://${
             req.headers["x-forwarded-host"]
-          }`;
+          }`
+        : // else just redirect to the home page.
+          `redirect=/`;
+
     res.redirect(
       `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=user:email,read:user,public_repo&redirect_uri=${FQDN}/login/callback?${redirect}`
     );
@@ -77,41 +81,42 @@ async function main() {
 
   app.get("/login/callback", async (req, res, next) => {
     const { code } = req.query;
-    // get the access token
-    const { access_token } = await fetch(
-      "https://github.com/login/oauth/access_token",
-      {
+
+    try {
+      // get the access token
+      const { access_token } = await fetch(
+        "https://github.com/login/oauth/access_token",
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            code
+          })
+        }
+      ).then(_res => _res.json());
+
+      // get the username from github
+      const userFetch = await fetch("https://api.github.com/graphql", {
         method: "POST",
         headers: {
+          Authorization: `bearer ${access_token}`,
           Accept: "application/json",
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
-          code
-        })
-      }
-    ).then(_res => _res.json());
-
-    // get the username from github
-    const userFetch = await fetch("https://api.github.com/graphql", {
-      method: "POST",
-      headers: {
-        Authorization: `bearer ${access_token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      body:
-        ' \
+        body:
+          ' \
       { \
         "query": "query { viewer { login email }}" \
       } \
     '
-    }).then(_res => _res.json());
+      }).then(_res => _res.json());
 
-    const userName = userFetch.data.viewer.login;
-    try {
+      const userName = userFetch.data.viewer.login;
       const user = await photon.users.upsert({
         where: { name: userName },
         update: {
@@ -135,7 +140,7 @@ async function main() {
         httpOnly: true,
         domain: SCOPE
       });
-      res.header('X-Auth-User', jwtToken)
+      res.header("X-Forward-Auth-User", jwtToken);
       res.redirect(req.query.redirect);
     } catch (error) {
       next(error);

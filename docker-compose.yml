@@ -2,7 +2,7 @@ version: '3.7'
 services:
   reverse-proxy:
     image: traefik # The official Traefik docker image
-    command: --api --docker --logLevel="DEBUG" # Enables the web UI and tells Traefik to listen to docker
+    command: --api --docker # Enables the web UI and tells Traefik to listen to docker 
     ports:
       - "80:80"     # The HTTP port
       - "8888:8080" # The Web UI (enabled by --api)
@@ -11,14 +11,12 @@ services:
   
   nginx:
     image: nginx
-    # volumes:
-      # - ./demo:/usr/share/nginx/html
     labels:
       - "traefik.enable=true" # Enable reverse-proxy for this service
       - "traefik.frontend.rule=Host:demo.haxcms.localhost"
-      # - "traefik.frontend.auth.forward.address=http://auth.haxcms.localhost/auth"
-      # - "traefik.frontend.auth.forward.authResponseHeaders=X-Auth-User"
-      # - "traefik.frontend.auth.forward.trustForwardHeader=true"
+      - "traefik.frontend.auth.forward.address=http://auth.haxcms.localhost/auth"
+      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forward-Auth-User"
+      - "traefik.frontend.auth.forward.trustForwardHeader=true"
       - "traefik.port=80"
   
   server:
@@ -31,3 +29,26 @@ services:
       - "traefik.frontend.rule=Host:auth.haxcms.localhost"
       - "traefik.port=4000"
       - "traefik.frontend.passHostHeader=true"
+    environment:
+      - POSTGRES_USER=prisma
+      - POSTGRES_PASSWORD=prisma
+      - POSTGRES_DB=prisma
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:10.3
+    restart: always
+    # ports:
+    #   - '5432:5432'
+    environment:
+      POSTGRES_USER: prisma
+      POSTGRES_PASSWORD: prisma
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    labels:
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.port=5432"
+
+volumes:
+  postgres:

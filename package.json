@@ -21,10 +21,11 @@
     "typescript": "3.6.3",
     "prisma2": "2.0.0-preview-12"
   },
+
   "scripts": {
-    "start": "yarn run migrate && nodemon ./server/index.js",
+    "start": "yarn run migrate && yarn run generate && nodemon ./server/index.js",
     "seed": "ts-node ./seed.ts",
-    "migrate": "prisma2 lift up",
+    "migrate": "prisma2 lift up -c",
     "generate": "prisma2 generate"
   }
 }
