@@ -22,9 +22,9 @@
     "prisma2": "2.0.0-preview-12"
   },
   "scripts": {
-    "start": "yarn run create-db && nodemon ./server/index.js",
+    "start": "yarn run migrate && nodemon ./server/index.js",
     "seed": "ts-node ./seed.ts",
-    "create-db": "prisma2 lift up",
+    "migrate": "prisma2 lift up",
     "generate": "prisma2 generate"
   }
 }

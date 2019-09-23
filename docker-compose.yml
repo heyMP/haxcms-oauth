@@ -24,7 +24,6 @@ services:
   server:
     build: .
     volumes:
-      - /home/node/app/prisma/dev.db
       - /home/node/app/node_modules
       - .:/home/node/app
     labels:
