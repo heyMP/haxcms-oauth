@@ -20,19 +20,23 @@ async function main() {
   const app = express();
   app.use(cors());
   app.use(bodyParser.json());
-  app.use(cookieParser())
+  app.use(cookieParser());
 
   app.get("/", (req, res) => {
-    res.send('asdf')
-    // const { authorization } = req.cookies
-    // if (authorization) {
-    //   // Decode jwt
-    //   const verify = await jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET)
-    //   res.send('hi')
-    // }
-    // else {
-    //   res.send(`<a href="/login">Sign in with Github</a>`)
-    // }
+    const { authorization } = req.cookies;
+    if (authorization) {
+      // Decode jwt
+      const verify = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+      res.send(`Hi ${verify.name} <a href="/logout">Logout</a>`);
+    } else {
+      res.send(`<a href="/login">Sign in with Github</a>`);
+    }
+  });
+
+  app.get("/logout", (req, res) => {
+    // When deleting a cookie you need to also include the path and domain
+    res.clearCookie('authorization', { domain: SCOPE })
+    res.redirect('/')
   });
 
   app.get("/login", (req, res) => {
