@@ -22,6 +22,23 @@ async function main() {
   app.use(bodyParser.json());
   app.use(cookieParser());
 
+  // Make sure that there isn't a scenario where the user is logged in but they
+  // don't exist in the database
+  app.use(async (req, res, next) => {
+    try {
+      const { authorization } = req.cookies
+      if (authorization) {
+        const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+        await photon.users.findOne({ where: { name }})
+      }
+    } catch (error) { 
+      delete(req.cookies.authorization)
+      res.clearCookie("authorization", { domain: SCOPE });
+    }
+    
+    next()
+  })
+
   app.get("/auth", async (req, res) => {
     const { authorization } = req.cookies;
     if (authorization) {
