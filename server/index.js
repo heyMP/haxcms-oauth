@@ -26,37 +26,32 @@ async function main() {
   // don't exist in the database
   app.use(async (req, res, next) => {
     try {
-      const { authorization } = req.cookies
+      const { authorization } = req.cookies;
       if (authorization) {
         const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
-        await photon.users.findOne({ where: { name }})
+        await photon.users.findOne({ where: { name } });
       }
-    } catch (error) { 
-      delete(req.cookies.authorization)
+    } catch (error) {
+      delete req.cookies.authorization;
       res.clearCookie("authorization", { domain: SCOPE });
     }
-    
-    next()
-  })
+
+    next();
+  });
 
   app.get("/auth", async (req, res) => {
-    const { authorization } = req.cookies;
-    if (authorization) {
-      // Decode jwt
-      try {
-        const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
-        // Create JWT for the user
-        const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
-        res.status(200);
-        res.header("X-Forward-Auth-User", JSON.stringify(jwtToken));
-        res.send("OK");
-      } catch (error) {
-        res.status(401);
-        res.send();
-      }
-    } else {
-      res.status(401);
-      res.send();
+    // Decode jwt
+    try {
+      const { authorization } = req.cookies;
+      const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+      // Create JWT for the user
+      const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
+      res.status(200);
+      res.header("X-Forward-Auth-User", JSON.stringify(jwtToken));
+      res.send("OK");
+    } catch (error) {
+      const redirect = typeof req.headers['x-forwarded-host'] !== 'undefined' ? `redirect=${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}` : ``
+      res.redirect(`/login/?${redirect}`);
     }
   });
 
