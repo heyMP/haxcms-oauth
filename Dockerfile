@@ -7,6 +7,7 @@ RUN yarn install
 
 RUN chown -R node:node node_modules
 COPY . .
+RUN chown -R node:node *
 
 USER node
 
