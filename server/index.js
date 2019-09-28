@@ -12,28 +12,37 @@ const { ApolloServer, gql } = require("apollo-server-express");
 const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 const HAXCMS_OAUTH_JWT_SECRET = process.env.HAXCMS_OAUTH_JWT_SECRET;
+const HAXCMS_OAUTH_JWT_REFRESH_SECRET = process.env.HAXCMS_OAUTH_JWT_REFRESH_SECRET;
 const FQDN = process.env.FQDN;
 const SCOPE = process.env.SCOPE;
 
 async function main() {
   await photon.connect();
   const app = express();
-  app.use(cors());
+
+  app.use(cors({
+    credentials: true
+  }));
   app.use(bodyParser.json());
   app.use(cookieParser());
+
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin)
+    next()
+  })
 
   // Make sure that there isn't a scenario where the user is logged in but they
   // don't exist in the database
   app.use(async (req, res, next) => {
     try {
-      const { authorization } = req.cookies;
-      if (authorization) {
-        const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+      const { access_token } = req.cookies;
+      if (access_token) {
+        const { name } = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
         await photon.users.findOne({ where: { name } });
       }
     } catch (error) {
-      delete req.cookies.authorization;
-      res.clearCookie("authorization", { domain: SCOPE });
+      delete req.cookies.access_token;
+      res.clearCookie("access_token", { domain: SCOPE });
     }
 
     next();
@@ -42,13 +51,13 @@ async function main() {
   app.get("/auth", async (req, res) => {
     // Decode jwt
     try {
-      const { authorization } = req.cookies;
-      const { name } = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+      const { access_token } = req.cookies;
+      const { name } = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
       // Create JWT for the user
       const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
       res.status(200);
-      res.header("X-Forward-Auth-User", JSON.stringify(jwtToken));
-      res.send("OK");
+      res.header("X-User", jwtToken);
+      res.send(jwtToken);
     } catch (error) {
       const redirect = typeof req.headers['x-forwarded-host'] !== 'undefined' ? `redirect=${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}` : ``
       res.redirect(`/login/?${redirect}`);
@@ -56,19 +65,29 @@ async function main() {
   });
 
   app.get("/", (req, res) => {
-    const { authorization } = req.cookies;
-    if (authorization) {
+    const { access_token } = req.cookies;
+    if (access_token) {
       // Decode jwt
-      const verify = jwt.verify(authorization, HAXCMS_OAUTH_JWT_SECRET);
+      const verify = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
       res.send(`Hi ${verify.name} <a href="/logout">Logout</a>`);
     } else {
       res.send(`<a href="/login">Sign in with Github</a>`);
     }
   });
 
+  app.get('/access_token', async (req, res) => {
+    const { refresh_token } = req.cookies;
+    if (refresh_token) {
+      const { name } = jwt.verify(refresh_token, HAXCMS_OAUTH_JWT_REFRESH_SECRET);
+      const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
+      res.json(jwtToken)
+    }
+  })
+
   app.get("/logout", (req, res) => {
     // When deleting a cookie you need to also include the path and domain
-    res.clearCookie("authorization", { domain: SCOPE });
+    res.clearCookie("access_token", { domain: SCOPE });
+    res.clearCookie("refresh_token", { domain: SCOPE });
     res.redirect("/");
   });
 
@@ -141,18 +160,20 @@ async function main() {
       });
 
       // Create JWT for the user
-      const jwtToken = await jwt.sign(
+      const refreshJwtToken = await jwt.sign(
         { name: user.name },
-        HAXCMS_OAUTH_JWT_SECRET
+        HAXCMS_OAUTH_JWT_REFRESH_SECRET,
+        {
+          expiresIn: '7d'
+        }
       );
 
       // if the user specified a redirect url then redirect with a cookie
-      res.cookie("authorization", jwtToken, {
-        maxAge: 900000,
+      res.cookie("refresh_token", refreshJwtToken, {
         httpOnly: true,
         domain: SCOPE
       });
-      res.header("X-Forward-Auth-User", jwtToken);
+
       res.redirect(req.query.redirect);
     } catch (error) {
       next(error);

@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@lrnwebcomponents/hax-logo": "./@lrnwebcomponents/hax-logo.js",
+    "@lrnwebcomponents/simple-login": "./@lrnwebcomponents/simple-login.js",
+    "lit-element": "./lit-element.js",
+    "shader-doodle": "./shader-doodle.js",
+    "@vaadin/router": "./@vaadin/router.js",
+    "@adobe/lit-mobx": "./@adobe/lit-mobx.js",
+    "mobx": "./mobx.js"
+  }
+}

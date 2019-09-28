@@ -11,14 +11,16 @@ services:
   
   nginx:
     image: nginx
+    volumes:
+      - ./demo:/usr/share/nginx/html:ro
     labels:
       - "traefik.enable=true" # Enable reverse-proxy for this service
       - "traefik.frontend.rule=Host:demo.haxcms.localhost"
       - "traefik.frontend.auth.forward.address=http://auth.haxcms.localhost/auth"
-      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forward-Auth-User"
-      - "traefik.frontend.auth.forward.trustForwardHeader=true"
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
       - "traefik.port=80"
-  
+
   server:
     build: .
     volumes:
