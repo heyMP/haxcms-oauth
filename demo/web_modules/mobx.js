@@ -604,25 +604,19 @@ function createAction(actionName, fn, ref) {
     return res;
 }
 function executeAction(actionName, fn, scope, args) {
-    var runInfo = startAction(actionName, fn, scope, args);
-    var shouldSupressReactionError = true;
+    var runInfo = _startAction(actionName, scope, args);
     try {
-        var res = fn.apply(scope, args);
-        shouldSupressReactionError = false;
-        return res;
+        return fn.apply(scope, args);
+    }
+    catch (err) {
+        runInfo.error = err;
+        throw err;
     }
     finally {
-        if (shouldSupressReactionError) {
-            globalState.suppressReactionErrors = shouldSupressReactionError;
-            endAction(runInfo);
-            globalState.suppressReactionErrors = false;
-        }
-        else {
-            endAction(runInfo);
-        }
+        _endAction(runInfo);
     }
 }
-function startAction(actionName, fn, scope, args) {
+function _startAction(actionName, scope, args) {
     var notifySpy = isSpyEnabled() && !!actionName;
     var startTime = 0;
     if (notifySpy && "development" !== "production") {
@@ -642,19 +636,32 @@ function startAction(actionName, fn, scope, args) {
     var prevDerivation = untrackedStart();
     startBatch();
     var prevAllowStateChanges = allowStateChangesStart(true);
-    return {
+    var runInfo = {
         prevDerivation: prevDerivation,
         prevAllowStateChanges: prevAllowStateChanges,
         notifySpy: notifySpy,
-        startTime: startTime
+        startTime: startTime,
+        actionId: globalState.nextActionId++,
+        parentActionId: globalState.currentActionId
     };
+    globalState.currentActionId = runInfo.actionId;
+    return runInfo;
 }
-function endAction(runInfo) {
+function _endAction(runInfo) {
+    if (globalState.currentActionId !== runInfo.actionId) {
+        fail("invalid action stack. did you forget to finish an action?");
+    }
+    globalState.currentActionId = runInfo.parentActionId;
+    if (runInfo.error !== undefined) {
+        globalState.suppressReactionErrors = true;
+    }
     allowStateChangesEnd(runInfo.prevAllowStateChanges);
     endBatch();
     untrackedEnd(runInfo.prevDerivation);
-    if (runInfo.notifySpy && "development" !== "production")
+    if (runInfo.notifySpy && "development" !== "production") {
         spyReportEnd({ time: Date.now() - runInfo.startTime });
+    }
+    globalState.suppressReactionErrors = false;
 }
 function allowStateChanges(allowStateChanges, func) {
     var prev = allowStateChangesStart(allowStateChanges);
@@ -1350,10 +1357,18 @@ var MobXGlobals = /** @class */ (function () {
          */
         this.disableErrorBoundaries = false;
         /*
-         * If true, we are already handling an exception in an action. Any errors in reactions should be supressed, as
+         * If true, we are already handling an exception in an action. Any errors in reactions should be suppressed, as
          * they are not the cause, see: https://github.com/mobxjs/mobx/issues/1836
          */
         this.suppressReactionErrors = false;
+        /*
+         * Current action id.
+         */
+        this.currentActionId = 0;
+        /*
+         * Next action id.
+         */
+        this.nextActionId = 1;
     }
     return MobXGlobals;
 }());
@@ -1410,8 +1425,15 @@ function resetGlobalState() {
             globalState[key] = defaultGlobals[key];
     globalState.allowStateChanges = !globalState.enforceActions;
 }
+var mockGlobal = {};
 function getGlobal() {
-    return typeof window !== "undefined" ? window : global;
+    if (typeof window !== "undefined") {
+        return window;
+    }
+    if (typeof global !== "undefined") {
+        return global;
+    }
+    return mockGlobal;
 }
 
 function hasObservers(observable) {
@@ -2063,8 +2085,8 @@ function onBecomeUnobserved(thing, arg2, arg3) {
     return interceptHook("onBecomeUnobserved", thing, arg2, arg3);
 }
 function interceptHook(hook, thing, arg2, arg3) {
-    var atom = typeof arg2 === "string" ? getAtom(thing, arg2) : getAtom(thing);
-    var cb = typeof arg2 === "string" ? arg3 : arg2;
+    var atom = typeof arg3 === "function" ? getAtom(thing, arg2) : getAtom(thing);
+    var cb = typeof arg3 === "function" ? arg3 : arg2;
     var listenersKey = hook + "Listeners";
     if (atom[listenersKey]) {
         atom[listenersKey].add(cb);
@@ -2199,6 +2221,8 @@ function extendObservableObjectWithProperties(target, properties, decorators, de
                 var key = keys_2_1.value;
                 var descriptor = Object.getOwnPropertyDescriptor(properties, key);
                 if ("development" !== "production") {
+                    if (!isPlainObject(properties))
+                        fail("'extendObservabe' only accepts plain objects as second argument");
                     if (Object.getOwnPropertyDescriptor(target, key))
                         fail("'extendObservable' can only be used to introduce new properties. Use 'set' or 'decorate' instead. The property '" + stringifyKey(key) + "' already exists on '" + target + "'");
                     if (isComputed(descriptor.value))
@@ -3193,7 +3217,7 @@ var arrayExtensions = {
         // which makes it both a 'derivation' and a 'mutation'.
         // so we deviate from the default and just make it an dervitation
         {
-            console.warn("[mobx] `observableArray.reverse()` will not update the array in place. Use `observableArray.slice().reverse()` to supress this warning and perform the operation on a copy, or `observableArray.replace(observableArray.slice().reverse())` to reverse & update in place");
+            console.warn("[mobx] `observableArray.reverse()` will not update the array in place. Use `observableArray.slice().reverse()` to suppress this warning and perform the operation on a copy, or `observableArray.replace(observableArray.slice().reverse())` to reverse & update in place");
         }
         var clone = this.slice();
         return clone.reverse.apply(clone, arguments);
@@ -3202,7 +3226,7 @@ var arrayExtensions = {
         // sort by default mutates in place before returning the result
         // which goes against all good practices. Let's not change the array in place!
         {
-            console.warn("[mobx] `observableArray.sort()` will not update the array in place. Use `observableArray.slice().sort()` to supress this warning and perform the operation on a copy, or `observableArray.replace(observableArray.slice().sort())` to sort & update in place");
+            console.warn("[mobx] `observableArray.sort()` will not update the array in place. Use `observableArray.slice().sort()` to suppress this warning and perform the operation on a copy, or `observableArray.replace(observableArray.slice().sort())` to sort & update in place");
         }
         var clone = this.slice();
         return clone.sort.apply(clone, arguments);
@@ -4350,17 +4374,17 @@ function has$1(a, key) {
 }
 
 function makeIterable(iterator) {
-    iterator[Symbol.iterator] = self;
+    iterator[Symbol.iterator] = getSelf;
     return iterator;
 }
-function self() {
+function getSelf() {
     return this;
 }
 
 /*
 The only reason for this file to exist is pure horror:
 Without it rollup can make the bundling fail at any point in time; when it rolls up the files in the wrong order
-it will cause undefined errors (for example because super classes or local variables not being hosted).
+it will cause undefined errors (for example because super classes or local variables not being hoisted).
 With this file that will still happen,
 but at least in this file we can magically reorder the imports with trial and error until the build succeeds again.
 */
@@ -4392,7 +4416,7 @@ try {
     "development";
 }
 catch (e) {
-    var g = typeof window !== "undefined" ? window : global;
+    var g = getGlobal();
     if (typeof process === "undefined")
         g.process = {};
     g.process.env = {};
@@ -4418,4 +4442,4 @@ if (typeof __MOBX_DEVTOOLS_GLOBAL_HOOK__ === "object") {
     });
 }
 
-export { $mobx, IDerivationState, ObservableMap, ObservableSet, Reaction, allowStateChanges as _allowStateChanges, allowStateChangesInsideComputed as _allowStateChangesInsideComputed, getAdministration as _getAdministration, getGlobalState as _getGlobalState, interceptReads as _interceptReads, isComputingDerivation as _isComputingDerivation, resetGlobalState as _resetGlobalState, action, autorun, comparer, computed, configure, createAtom, decorate, entries, extendObservable, flow, get, getAtom, getDebugName, getDependencyTree, getObserverTree, has, intercept, isAction, isArrayLike, isObservableValue as isBoxedObservable, isComputed, isComputedProp, isObservable, isObservableArray, isObservableMap, isObservableObject, isObservableProp, isObservableSet, keys, observable, observe, onBecomeObserved, onBecomeUnobserved, onReactionError, reaction, remove, runInAction, set, spy, toJS, trace, transaction, untracked, values, when };
+export { $mobx, IDerivationState, ObservableMap, ObservableSet, Reaction, allowStateChanges as _allowStateChanges, allowStateChangesInsideComputed as _allowStateChangesInsideComputed, _endAction, getAdministration as _getAdministration, getGlobalState as _getGlobalState, interceptReads as _interceptReads, isComputingDerivation as _isComputingDerivation, resetGlobalState as _resetGlobalState, _startAction, action, autorun, comparer, computed, configure, createAtom, decorate, entries, extendObservable, flow, get, getAtom, getDebugName, getDependencyTree, getObserverTree, has, intercept, isAction, isArrayLike, isObservableValue as isBoxedObservable, isComputed, isComputedProp, isObservable, isObservableArray, isObservableMap, isObservableObject, isObservableProp, isObservableSet, keys, observable, observe, onBecomeObserved, onBecomeUnobserved, onReactionError, reaction, remove, runInAction, set, spy, toJS, trace, transaction, untracked, values, when };

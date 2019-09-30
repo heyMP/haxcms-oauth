@@ -1,20 +1,15 @@
-import { LitElement, html } from "../../web_modules/lit-element.js";
-import { observable, action } from "../../web_modules/mobx.js";
+import { html } from "../../web_modules/lit-element.js";
 import { MobxLitElement } from "../../web_modules/@adobe/lit-mobx.js";
-
-const State = observable({
-  name: ""
-});
+import { store } from './store.js'
 
 class HodAuth extends MobxLitElement {
   constructor() {
     super();
-    this.state = observable({
-      name: ""
-    });
+    this.store = store
   }
   async connectedCallback() {
     super.connectedCallback();
+
     await this.getAccessToken();
     await this.getUser();
   }
@@ -49,7 +44,10 @@ class HodAuth extends MobxLitElement {
       "query": "query { user { name }}" \
     }'
       }).then(res => res.json());
+
+      this.store.name = user.data.user.name
     }
   }
+  
 }
 customElements.define("hod-auth", HodAuth);

@@ -1,5 +1,5 @@
-import { LitElement } from '../lit-element.js';
 import { Reaction } from '../mobx.js';
+import { LitElement } from '../lit-element.js';
 
 /*
 Copyright 2018 Adobe. All rights reserved.

@@ -16,7 +16,6 @@ const HAXCMS_OAUTH_JWT_REFRESH_SECRET = process.env.HAXCMS_OAUTH_JWT_REFRESH_SEC
 const FQDN = process.env.FQDN;
 const SCOPE = process.env.SCOPE;
 
-
 async function main() {
   await photon.connect();
   const app = express();
