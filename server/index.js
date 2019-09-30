@@ -16,9 +16,18 @@ const HAXCMS_OAUTH_JWT_REFRESH_SECRET = process.env.HAXCMS_OAUTH_JWT_REFRESH_SEC
 const FQDN = process.env.FQDN;
 const SCOPE = process.env.SCOPE;
 
+
 async function main() {
   await photon.connect();
   const app = express();
+
+  const getUserFromAuthHeader = (req) => {
+    if (typeof req.headers.authorization !== 'undefined') {
+      const access_token = req.headers.authorization.split(' ')[1]
+      const user = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET)
+      return user
+    }
+  }
 
   app.use(cors({
     credentials: true
@@ -26,6 +35,9 @@ async function main() {
   app.use(bodyParser.json());
   app.use(cookieParser());
 
+  /**
+   * Allow calls from web components with cookies
+   */
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', req.headers.origin)
     next()
@@ -44,20 +56,16 @@ async function main() {
       delete req.cookies.access_token;
       res.clearCookie("access_token", { domain: SCOPE });
     }
-
     next();
   });
 
   app.get("/auth", async (req, res) => {
     // Decode jwt
     try {
-      const { access_token } = req.cookies;
-      const { name } = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
-      // Create JWT for the user
-      const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
+      const { refresh_token } = req.cookies;
+      const { name } = jwt.verify(refresh_token, HAXCMS_OAUTH_JWT_REFRESH_SECRET);
       res.status(200);
-      res.header("X-User", jwtToken);
-      res.send(jwtToken);
+      res.send('OK')
     } catch (error) {
       const redirect = typeof req.headers['x-forwarded-host'] !== 'undefined' ? `redirect=${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}` : ``
       res.redirect(`/login/?${redirect}`);
@@ -191,16 +199,18 @@ async function main() {
 
       type Query {
         users: [User]
-        user(name: String!): User
+        user: User
       }
     `,
     resolvers: {
       Query: {
         users: async () => await photon.users(),
-        user: async (parent, { name }, ctx) =>
-          await photon.users.findOne({ where: { name } })
+        user: async (parent, _, ctx) => await photon.users.findOne({ where: { name: ctx.user.name } })
       }
-    }
+    },
+    context: ({req}) => ({
+      user: getUserFromAuthHeader(req)
+    })
   });
 
   apolloServer.applyMiddleware({ app });

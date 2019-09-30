@@ -12,34 +12,44 @@ class HodAuth extends MobxLitElement {
     this.state = observable({
       name: ""
     });
-    
   }
   async connectedCallback() {
     super.connectedCallback();
-
-    // window.location = `http://auth.haxcms.localhost/login?redirect=${window.location}`
-    const access_token = await fetch('http://auth.haxcms.localhost/access_token', {
-      credentials: 'include'
-    }).then(res => res.json())
-    if (access_token) {
-      window.localStorage.setItem('access_token', access_token)
-      const user = await fetch('http://auth.haxcms.localhost/graphql', {
-        method: "POST",
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authentication': `Bearer ${access_token}`
-        },
-        body:
-          ' \
-      { \
-        "query": "query { users { name }}" \
-      }'
-      }).then(res => res.json())
-
-      console.log(user)
-    }
+    await this.getAccessToken();
+    await this.getUser();
   }
 
+  async getAccessToken() {
+    try {
+      const access_token = await fetch(
+        "http://auth.haxcms.localhost/access_token",
+        {
+          credentials: "include"
+        }
+      );
+      if (access_token.status === 200) {
+        window.localStorage.setItem("access_token", await access_token.json());
+        return await access_token.json();
+      }
+    } catch (error) {}
+  }
+
+  async getUser() {
+    if (typeof window.localStorage.access_token !== "undefined") {
+      const access_token = window.localStorage.access_token
+      const user = await fetch("http://auth.haxcms.localhost/graphql", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${access_token}`
+        },
+        body: ' \
+    { \
+      "query": "query { user { name }}" \
+    }'
+      }).then(res => res.json());
+    }
+  }
 }
 customElements.define("hod-auth", HodAuth);
