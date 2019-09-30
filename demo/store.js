@@ -10,13 +10,15 @@ import {
 class Store {
   constructor() {
     this.name = null;
-    this.state = 'creating-store';
+    this.createContainer = {
+      state: 'default'
+    }
   }
 }
 
 decorate(Store, {
   name: observable,
-  state: observable
+  createContainer: observable
 });
 
 export const store = new Store()

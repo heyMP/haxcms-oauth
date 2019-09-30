@@ -71,17 +71,6 @@ async function main() {
     }
   });
 
-  app.get("/", (req, res) => {
-    const { access_token } = req.cookies;
-    if (access_token) {
-      // Decode jwt
-      const verify = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
-      res.send(`Hi ${verify.name} <a href="/logout">Logout</a>`);
-    } else {
-      res.send(`<a href="/login">Sign in with Github</a>`);
-    }
-  });
-
   app.get('/access_token', async (req, res) => {
     const { refresh_token } = req.cookies;
     if (refresh_token) {
@@ -93,7 +82,6 @@ async function main() {
 
   app.get("/logout", (req, res) => {
     // When deleting a cookie you need to also include the path and domain
-    res.clearCookie("access_token", { domain: SCOPE });
     res.clearCookie("refresh_token", { domain: SCOPE });
     res.redirect("/");
   });
@@ -110,7 +98,7 @@ async function main() {
             req.headers["x-forwarded-host"]
           }`
         : // else just redirect to the home page.
-          `redirect=/`;
+          `redirect=${FQDN}/auth`;
 
     res.redirect(
       `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=user:email,read:user,public_repo&redirect_uri=${FQDN}/login/callback?${redirect}`

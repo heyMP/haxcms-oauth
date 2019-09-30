@@ -26,21 +26,37 @@ class HodCreateContainer extends MobxLitElement {
           font-size: 1.3em;
           background: black;
           color: white;
-          font-family: 'Press Start 2P', cursive;
+          font-family: "Press Start 2P", cursive;
         }
         button:hover,
         button:focus {
           cursor: pointer;
         }
+        button:disabled {
+          cursor: default;
+          background: rgba(0,0,0, 0.8)
+        }
       </style>
       ${this.store.name
-        ? html`
-          <div id="button">
-            <button>Create your server</button>
-          </div>
-          `
+        ? this.store.createContainer.state === "default"
+          ? html`
+              <div id="button">
+                <button @click=${this.__clicked}>Create your server</button>
+              </div>
+            `
+          : this.store.createContainer.state === "initialized"
+          ? html`
+              <div id="button">
+                <button disabled>Initializing</button>
+              </div>
+            `
+          : ""
         : ""}
     `;
+  }
+
+  __clicked(e) {
+    this.store.createContainer.state = "initialized";
   }
 }
 customElements.define("hod-create-container", HodCreateContainer);
