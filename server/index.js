@@ -12,7 +12,8 @@ const { ApolloServer, gql } = require("apollo-server-express");
 const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 const HAXCMS_OAUTH_JWT_SECRET = process.env.HAXCMS_OAUTH_JWT_SECRET;
-const HAXCMS_OAUTH_JWT_REFRESH_SECRET = process.env.HAXCMS_OAUTH_JWT_REFRESH_SECRET;
+const HAXCMS_OAUTH_JWT_REFRESH_SECRET =
+  process.env.HAXCMS_OAUTH_JWT_REFRESH_SECRET;
 const FQDN = process.env.FQDN;
 const SCOPE = process.env.SCOPE;
 
@@ -20,17 +21,19 @@ async function main() {
   await photon.connect();
   const app = express();
 
-  const getUserFromAuthHeader = (req) => {
-    if (typeof req.headers.authorization !== 'undefined') {
-      const access_token = req.headers.authorization.split(' ')[1]
-      const user = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET)
-      return user
+  const getUserFromAuthHeader = req => {
+    if (typeof req.headers.authorization !== "undefined") {
+      const access_token = req.headers.authorization.split(" ")[1];
+      const user = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
+      return user;
     }
-  }
+  };
 
-  app.use(cors({
-    credentials: true
-  }));
+  app.use(
+    cors({
+      credentials: true
+    })
+  );
   app.use(bodyParser.json());
   app.use(cookieParser());
 
@@ -38,9 +41,9 @@ async function main() {
    * Allow calls from web components with cookies
    */
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin)
-    next()
-  })
+    res.header("Access-Control-Allow-Origin", req.headers.origin);
+    next();
+  });
 
   // Make sure that there isn't a scenario where the user is logged in but they
   // don't exist in the database
@@ -62,23 +65,34 @@ async function main() {
     // Decode jwt
     try {
       const { refresh_token } = req.cookies;
-      const { name } = jwt.verify(refresh_token, HAXCMS_OAUTH_JWT_REFRESH_SECRET);
+      const { name } = jwt.verify(
+        refresh_token,
+        HAXCMS_OAUTH_JWT_REFRESH_SECRET
+      );
       res.status(200);
-      res.send('OK')
+      res.send("OK");
     } catch (error) {
-      const redirect = typeof req.headers['x-forwarded-host'] !== 'undefined' ? `redirect=${req.headers['x-forwarded-proto']}://${req.headers['x-forwarded-host']}` : ``
+      const redirect =
+        typeof req.headers["x-forwarded-host"] !== "undefined"
+          ? `redirect=${req.headers["x-forwarded-proto"]}://${
+              req.headers["x-forwarded-host"]
+            }`
+          : ``;
       res.redirect(`/login/?${redirect}`);
     }
   });
 
-  app.get('/access_token', async (req, res) => {
+  app.get("/access_token", async (req, res) => {
     const { refresh_token } = req.cookies;
     if (refresh_token) {
-      const { name } = jwt.verify(refresh_token, HAXCMS_OAUTH_JWT_REFRESH_SECRET);
-      const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET);
-      res.json(jwtToken)
+      const { name } = jwt.verify(
+        refresh_token,
+        HAXCMS_OAUTH_JWT_REFRESH_SECRET
+      );
+      const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET, { expiresIn: 60 * 15 });
+      res.json(jwtToken);
     }
-  })
+  });
 
   app.get("/logout", (req, res) => {
     // When deleting a cookie you need to also include the path and domain
@@ -159,7 +173,7 @@ async function main() {
         { name: user.name },
         HAXCMS_OAUTH_JWT_REFRESH_SECRET,
         {
-          expiresIn: '7d'
+          expiresIn: "7d"
         }
       );
 
@@ -192,10 +206,11 @@ async function main() {
     resolvers: {
       Query: {
         users: async () => await photon.users(),
-        user: async (parent, _, ctx) => await photon.users.findOne({ where: { name: ctx.user.name } })
+        user: async (parent, _, ctx) =>
+          await photon.users.findOne({ where: { name: ctx.user.name } })
       }
     },
-    context: ({req}) => ({
+    context: ({ req }) => ({
       user: getUserFromAuthHeader(req)
     })
   });
