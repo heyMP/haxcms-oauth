@@ -1,0 +1,17 @@
+datasource db {
+  provider = env("PRISMA_DB_PROVIDER")
+  url      = env("PRISMA_DB_URL")
+}
+
+generator photon {
+  provider = "photonjs"
+}
+
+model User {
+  id                String   @default(cuid()) @id
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  name              String   @unique
+  email             String?
+  githubAccessToken String?
+}

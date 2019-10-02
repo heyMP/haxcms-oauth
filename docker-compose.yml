@@ -31,6 +31,9 @@ services:
       - "traefik.frontend.rule=Host:auth.haxcms.localhost"
       - "traefik.port=4000"
       - "traefik.frontend.passHostHeader=true"
+    environment:
+      - PRISMA_DB_PROVIDER=postgresql
+      - PRISMA_DB_URL=postgresql://prisma:prisma@postgres/
     depends_on:
       - postgres
 
