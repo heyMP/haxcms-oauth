@@ -11,6 +11,7 @@ const { ApolloServer, gql } = require("apollo-server-express");
 
 const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
+const GITHUB_SCOPE = process.env.GITHUB_SCOPE;
 const HAXCMS_OAUTH_JWT_SECRET = process.env.HAXCMS_OAUTH_JWT_SECRET;
 const HAXCMS_OAUTH_JWT_REFRESH_SECRET =
   process.env.HAXCMS_OAUTH_JWT_REFRESH_SECRET;
@@ -115,7 +116,7 @@ async function main() {
           `redirect=${FQDN}/auth`;
 
     res.redirect(
-      `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=user:email,read:user,public_repo&redirect_uri=${FQDN}/login/callback?${redirect}`
+      `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=${GITHUB_SCOPE}&redirect_uri=${FQDN}/login/callback?${redirect}`
     );
   });
 

@@ -34,6 +34,7 @@ services:
     environment:
       - PRISMA_DB_PROVIDER=postgresql
       - PRISMA_DB_URL=postgresql://prisma:prisma@postgres/
+      - GITHUB_SCOPE=user:email,read:user,public_rep
     depends_on:
       - postgres
 
