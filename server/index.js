@@ -216,8 +216,10 @@ async function main() {
     resolvers: {
       Query: {
         users: async () => await photon.users(),
-        user: async (parent, _, ctx) =>
-          await photon.users.findOne({ where: { name: ctx.user.name } })
+        user: async (parent, _, ctx) => {
+          const { name } = await ctx.user
+          return await photon.users.findOne({ where: { name } })
+        }
       }
     },
     context: ({ req }) => ({
