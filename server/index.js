@@ -7,7 +7,7 @@ const fetch = require("node-fetch");
 const { Photon } = require("@generated/photon");
 const photon = new Photon();
 const jwt = require("jsonwebtoken");
-const { ApolloServer, gql } = require("apollo-server-express");
+const { ApolloServer, gql, AuthenticationError } = require("apollo-server-express");
 
 const CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
@@ -22,11 +22,16 @@ async function main() {
   await photon.connect();
   const app = express();
 
-  const getUserFromAuthHeader = req => {
-    if (typeof req.headers.authorization !== "undefined") {
-      const access_token = req.headers.authorization.split(" ")[1];
-      const user = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
-      return user;
+  const getUserFromAuthHeader = async req => {
+    try {
+      if (typeof req.headers.authorization !== "undefined") {
+        const access_token = req.headers.authorization.split(" ")[1];
+        const user = jwt.verify(access_token, HAXCMS_OAUTH_JWT_SECRET);
+        return user;
+      }
+    } catch (error) {
+      throw new AuthenticationError(error);
+      return null;
     }
   };
 
@@ -92,6 +97,9 @@ async function main() {
       );
       const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET, { expiresIn: 60 * 15 });
       res.json(jwtToken);
+    }
+    else {
+      throw new AuthenticationError('No refresh token found.')
     }
   });
 
