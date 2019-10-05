@@ -172,12 +172,9 @@ async function main() {
       const userName = userFetch.data.viewer.login;
       const user = await photon.users.upsert({
         where: { name: userName },
-        update: {
-          githubAccessToken: access_token
-        },
+        update: { },
         create: {
-          name: userName,
-          githubAccessToken: access_token
+          name: userName
         }
       });
 
