@@ -88,18 +88,22 @@ async function main() {
     }
   });
 
-  app.get("/access_token", async (req, res) => {
-    const { refresh_token } = req.cookies;
-    if (refresh_token) {
-      const { name } = jwt.verify(
-        refresh_token,
-        HAXCMS_OAUTH_JWT_REFRESH_SECRET
-      );
-      const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET, { expiresIn: 60 * 15 });
-      res.json(jwtToken);
-    }
-    else {
-      throw new AuthenticationError('No refresh token found.')
+  app.get("/access_token", async (req, res, next) => {
+    try {
+      const { refresh_token } = req.cookies;
+      if (refresh_token) {
+        const { name } = jwt.verify(
+          refresh_token,
+          HAXCMS_OAUTH_JWT_REFRESH_SECRET
+        );
+        const jwtToken = await jwt.sign({ name }, HAXCMS_OAUTH_JWT_SECRET, { expiresIn: 60 * 15 })
+        res.json(jwtToken);
+      }
+      else {
+        throw new AuthenticationError('No refresh token found.')
+      }
+    } catch (error) {
+      next(new AuthenticationError(error))
     }
   });
 
