@@ -1,0 +1,54 @@
+version: '3.7'
+services:
+  reverse-proxy:
+    image: traefik # The official Traefik docker image
+    command: --api --docker # Enables the web UI and tells Traefik to listen to docker 
+    ports:
+      - "80:80"     # The HTTP port
+      - "8888:8080" # The Web UI (enabled by --api)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
+  
+  nginx:
+    image: nginx
+    volumes:
+      - ./demo:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.frontend.rule=Host:demo.haxcms.localhost"
+      - "traefik.frontend.auth.forward.address=http://auth.haxcms.localhost/auth"
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
+      - "traefik.port=80"
+  
+  server:
+    build: .
+    volumes:
+      - /home/node/app/node_modules
+      - .:/home/node/app
+    labels:
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.frontend.rule=Host:auth.haxcms.localhost"
+      - "traefik.port=4000"
+      - "traefik.frontend.passHostHeader=true"
+    environment:
+      - PRISMA_DB_PROVIDER=postgresql
+      - PRISMA_DB_URL=postgresql://prisma:prisma@postgres/
+      - GITHUB_SCOPE=user:email,read:user,public_rep
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:10.3
+    restart: always
+    environment:
+      POSTGRES_USER: prisma
+      POSTGRES_PASSWORD: prisma
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    labels:
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.port=5432"
+
+volumes:
+  postgres:
