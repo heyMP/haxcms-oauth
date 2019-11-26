@@ -109,6 +109,17 @@ async function main() {
 
   app.get("/logout", (req, res) => {
     // When deleting a cookie you need to also include the path and domain
+    const redirect =
+      // if we have a redirect query then use it
+      typeof req.query.redirect !== "undefined"
+        ? `redirect=${req.query.redirect}`
+        : // else if there is an x-forwared-host defined then use that
+        typeof req.headers["x-forwarded-host"] !== "undefined"
+        ? `redirect=${req.headers["x-forwarded-proto"]}://${
+            req.headers["x-forwarded-host"]
+          }`
+        : // else just redirect to the home page.
+          `redirect=${FQDN}/auth`;
     res.clearCookie("refresh_token", { domain: SCOPE });
     res.redirect("/");
   });
@@ -228,7 +239,7 @@ async function main() {
   });
 
   apolloServer.applyMiddleware({ app });
-
+// 
   app.listen(4000, () => {
     console.log(
       `🚀 Server ready at http://localhost:4000${apolloServer.graphqlPath}`
