@@ -1,41 +1,36 @@
 version: '3.7'
 services:
   reverse-proxy:
-    image: traefik:2 # The official Traefik docker image
-    command:
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
+    image: traefik # The official Traefik docker image
+    command: --api --docker # Enables the web UI and tells Traefik to listen to docker 
     ports:
       - "80:80"     # The HTTP port
       - "8888:8080" # The Web UI (enabled by --api)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock # So that Traefik can listen to the Docker events
-
-  demo:
+  
+  nginx:
     image: nginx
     volumes:
       - ./demo:/usr/share/nginx/html:ro
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.demo.rule=Host(`demo.${SCOPE}`)"
-      - "traefik.http.services.demo.loadbalancer.server.port=80"
-      - "traefik.http.services.demo.loadbalancer.passhostheader=false"
-      - "traefik.http.middlewares.demo.forwardauth.address=http://demo.${SCOPE}/auth"
-      - "traefik.http.middlewares.demo.forwardauth.authResponseHeaders=X-Forwarded-User"
-      - "traefik.http.middlewares.demo.forwardauth.trustForwardHeader=true"
-
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.frontend.rule=Host:demo.haxcms.localhost"
+      - "traefik.frontend.auth.forward.address=http://auth.haxcms.localhost/auth"
+      - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+      - traefik.frontend.auth.forward.trustForwardHeader=true
+      - "traefik.port=80"
+  
   server:
     build: .
     volumes:
       - /home/node/app/node_modules
       - .:/home/node/app
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=Host(`auth.${SCOPE}`)"
-      - "traefik.http.services.auth.loadbalancer.server.port=4000"
-      - "traefik.http.services.auth.loadbalancer.passhostheader=false"
+      - "traefik.enable=true" # Enable reverse-proxy for this service
+      - "traefik.frontend.rule=Host:auth.haxcms.localhost"
+      - "traefik.port=4000"
+      - "traefik.frontend.passHostHeader=true"
     environment:
       - PRISMA_DB_PROVIDER=postgresql
       - PRISMA_DB_URL=postgresql://prisma:prisma@postgres/
