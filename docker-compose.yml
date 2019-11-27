@@ -1,7 +1,7 @@
 version: '3.7'
 services:
   reverse-proxy:
-    image: traefik:2 # The official Traefik docker image
+    image: traefik:2.1 # The official Traefik docker image
     command:
       - --api.insecure=true
       - --providers.docker=true
